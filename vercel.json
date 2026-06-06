@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "echo 'install handled in buildCommand'",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://your-backend-url.railway.app/api/v1/:path*"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://your-backend-url.railway.app/api/v1"
+  }
+}
