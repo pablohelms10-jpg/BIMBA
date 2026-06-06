@@ -5,9 +5,12 @@ import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import os
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import router as v1_router
 from app.config import settings
@@ -27,27 +30,36 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("BIMBA backend starting (env=%s)", settings.app_env)
 
-    # Ensure the MinIO bucket exists on startup
+    # Ensure storage backend is ready on startup
     try:
         from app.services.storage import StorageService
         StorageService()
-        logger.info("MinIO bucket ready")
+        if settings.use_local_storage:
+            logger.info("Local filesystem storage ready at %s", settings.local_storage_path)
+        else:
+            logger.info("MinIO bucket ready")
     except Exception as exc:
-        logger.warning("MinIO not available at startup: %s", exc)
+        logger.warning("Storage not available at startup: %s", exc)
 
-    # Ensure Qdrant collection exists
-    try:
-        from app.services.vector_store import VectorStoreService
-        VectorStoreService()._get_client()
-        logger.info("Qdrant collection ready")
-    except Exception as exc:
-        logger.warning("Qdrant not available at startup: %s", exc)
+    # Ensure Qdrant collection exists (optional)
+    if settings.use_qdrant:
+        try:
+            from app.services.vector_store import VectorStoreService
+            VectorStoreService()._get_client()
+            logger.info("Qdrant collection ready")
+        except Exception as exc:
+            logger.warning("Qdrant not available at startup: %s", exc)
+    else:
+        logger.info("Qdrant disabled — using in-memory similarity fallback")
 
     yield
     logger.info("BIMBA backend shutting down")
 
 
 # ---- Application ------------------------------------------------------------
+
+if settings.use_local_storage:
+    os.makedirs(settings.local_storage_path, exist_ok=True)
 
 app = FastAPI(
     title="BIMBA API",
@@ -66,6 +78,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---- Static files (local storage mode) -------------------------------------
+
+if settings.use_local_storage:
+    app.mount("/files", StaticFiles(directory=settings.local_storage_path), name="files")
 
 
 # ---- Middleware: request timing ---------------------------------------------

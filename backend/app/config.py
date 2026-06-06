@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin123"
     minio_bucket: str = "bimba-files"
     minio_secure: bool = False
+
+    # ---- Storage mode ----
+    use_local_storage: bool = Field(default=False, alias="USE_LOCAL_STORAGE")
+    local_storage_path: str = Field(default="/tmp/bimba_storage", alias="LOCAL_STORAGE_PATH")
+
+    # ---- Qdrant (optional) ----
+    use_qdrant: bool = Field(default=True, alias="USE_QDRANT")
 
     # ---- AI / LLM ----
     anthropic_api_key: str = ""
